@@ -41,3 +41,11 @@ class ProductImage(models.Model):
 
     def __str__(self):
         return self.product.name
+    
+class ProductSize(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    size = models.CharField(max_length=10)
+    available_quantity = models.IntegerField() # of this size.
+
+    def __str__(self):
+        return self.product.name

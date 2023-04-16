@@ -3,8 +3,8 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Product, ProductImage
-from .serializers import CategorySerializer, ProductSerializer, ImageSerializer
+from .models import Category, Product, ProductImage, ProductSize
+from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -20,7 +20,7 @@ class ProductList(generics.ListCreateAPIView):
     def get_queryset(self):
         slug = self.kwargs['slug']
         category = get_object_or_404(Category, slug=slug)
-        qs = Product.objects.filter(category=category)
+        qs = Product.objects.filter(category=category).order_by('-id')
         return qs
 
 
@@ -29,14 +29,16 @@ class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ProductSerializer
     lookup_field = 'slug'
 
+
 class SimilarProductList(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
 
     def get_queryset(self):
         slug = self.kwargs['slug']
         category = get_object_or_404(Category, slug=slug)
-        qs = Product.objects.filter(category=category)[:12]
+        qs = Product.objects.filter(category=category).order_by('-id')[:12]
         return qs
+
 
 @api_view(['GET'])
 @permission_classes([AllowAny])
@@ -47,3 +49,10 @@ def get_images(request, product_id):
     serializer = ImageSerializer(images, many=True)
     return Response(serializer.data)
 
+@api_view(['GET'])
+@permission_classes([AllowAny])
+def get_available_sizes(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    sizes = ProductSize.objects.filter(product=product, available_quantity__gt=0)
+    serializer = ProductSizeSerializer(sizes, many=True)
+    return Response(serializer.data)
