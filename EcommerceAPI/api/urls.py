@@ -24,4 +24,10 @@ urlpatterns = [
 
     # Register user
     path('register/user/', views.register_user, name='register'),
+
+    # Orders
+    path('place_order/', views.place_order, name='place_order'),
+
+    # Utils
+    path('get_user_data/<int:user_id>/', views.get_user_data, name='get_user_data'),
 ]

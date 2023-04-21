@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductSize, User
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -31,11 +31,11 @@ class ProductSizeSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'size', 'available_quantity']
 
 
-class UserSerializer(serializers.ModelSerializer):
+class UserDataSerializer1(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id', 'username', 'first_name', 'last_name',
-                  'email', 'phone', 'address', 'is_moderator', 'is_admin']
+                  'email', 'phone', 'address']
 
 
 class UserRegisterSerializer(serializers.ModelSerializer):
@@ -53,3 +53,27 @@ class UserRegisterSerializer(serializers.ModelSerializer):
             user.save()
 
             return user
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    user_id = serializers.IntegerField(required=False)
+    username = serializers.CharField(max_length=100, required=False)
+    first_name = serializers.CharField(max_length=100, required=False)
+    last_name = serializers.CharField(max_length=100, required=False)
+    email = serializers.EmailField(max_length=100, required=False)
+    phone = serializers.CharField(max_length=100, required=False)
+    address = serializers.CharField(max_length=300, required=False)
+
+    class Meta:
+        model = Order
+        fields = ['id', 'user_id', 'username', 'first_name', 'last_name',
+                  'email', 'phone', 'address', 'date_ordered', 'delivered', 'shipping_charge']
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    order = OrderSerializer()
+    product = ProductSerializer()
+
+    class Meta:
+        model = OrderItem
+        fields = ['id', 'order', 'product', 'quantity', 'size', 'price']
