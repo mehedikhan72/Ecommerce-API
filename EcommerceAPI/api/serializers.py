@@ -9,7 +9,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category = CategorySerializer()
+    category = CategorySerializer(required=False)
 
     class Meta:
         model = Product

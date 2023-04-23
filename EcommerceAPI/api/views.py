@@ -12,6 +12,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from django.http import JsonResponse
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.exceptions import PermissionDenied
 
 # Create your views here.
 
@@ -24,6 +25,20 @@ class ProductList(generics.ListCreateAPIView):
         category = get_object_or_404(Category, slug=slug)
         qs = Product.objects.filter(category=category).order_by('-id')
         return qs
+
+    def perform_create(self, serializer):
+        if self.request.user.is_authenticated:
+            if self.request.user.is_moderator or self.request.user.is_admin:
+                slug = self.kwargs['slug']
+                category = get_object_or_404(Category, slug=slug)
+                serializer.save(category=category)
+                return Response(serializer.data)
+            else:
+                raise PermissionDenied(
+                    "You are not authorized to take this action!")
+        else:
+            raise PermissionDenied(
+                "Credentials were not provided!")
 
 
 class ProductDetail(generics.RetrieveUpdateDestroyAPIView):
@@ -40,6 +55,10 @@ class SimilarProductList(generics.ListCreateAPIView):
         category = get_object_or_404(Category, slug=slug)
         qs = Product.objects.filter(category=category).order_by('-id')[:12]
         return qs
+    
+class CategoryList(generics.ListCreateAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
 
 
 @api_view(['GET'])
@@ -50,6 +69,72 @@ def get_images(request, product_id):
     images = ProductImage.objects.filter(product=product)
     serializer = ImageSerializer(images, many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def upload_images(request, product_id):
+    user = request.user
+    if user.is_moderator or user.is_admin:
+        product = get_object_or_404(Product, id=product_id)
+        images = request.FILES.getlist('images')
+        print(images)
+
+        if not images:
+            return JsonResponse({
+                'error': 'No images were provided!'
+            })
+
+        if (len(images) >= 10):
+            return JsonResponse({
+                "Error": "More than 10 images is not allowed."
+            })
+
+        for image in images:
+            product_image = ProductImage.objects.create(
+                product=product, image=image)
+            product_image.save()
+
+        product.intro_image = images[0]
+        product.save()
+
+        return JsonResponse({
+            'success': 'Images were uploaded successfully!'
+        })
+
+    else:
+        raise PermissionDenied(
+            "You are not authorized to take this action!")
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_product_sizes(request, product_id):
+    user = request.user
+    if user.is_moderator or user.is_admin:
+        product = get_object_or_404(Product, id=product_id)
+        sizes = request.data
+
+        if not sizes:
+            return JsonResponse({
+                'error': 'No sizes were provided!'
+            })
+
+        for s in sizes:
+            size = s['size']
+            available_quantity = s['available_quantity']
+            product_size = ProductSize.objects.create(
+                product=product, size=size, available_quantity=available_quantity
+            )
+            product_size.save()
+
+        return JsonResponse({
+            'success': 'Sizes were added successfully!'
+        })
+
+    else:
+        raise PermissionDenied(
+            "You are not authorized to take this action!")
 
 
 @api_view(['GET'])
@@ -83,6 +168,8 @@ class MyTokenObtainPairSerializer(TokenObtainPairSerializer):
         token['email'] = user.email
         token['first_name'] = user.first_name
         token['last_name'] = user.last_name
+        token['is_moderator'] = user.is_moderator
+        token['is_admin'] = user.is_admin
 
         return token
 
@@ -166,6 +253,7 @@ def place_order(request):
                 return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
     return Response({'message': 'Order placed successfully!'}, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET'])
 def get_user_data(request, user_id):
