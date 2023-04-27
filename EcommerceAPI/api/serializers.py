@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -77,3 +77,11 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = ['id', 'order', 'product', 'quantity', 'size', 'price']
+
+class WishListSerializer(serializers.ModelSerializer):
+    user = UserDataSerializer1()
+    product = ProductSerializer()
+
+    class Meta:
+        model = WishList
+        fields = ['id', 'user', 'product', 'date']

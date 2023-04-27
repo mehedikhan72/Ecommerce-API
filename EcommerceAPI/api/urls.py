@@ -18,7 +18,8 @@ urlpatterns = [
 
     # images
     path('images/<int:product_id>/', views.get_images, name='get_images'),
-    path('upload_images/<int:product_id>/', views.upload_images, name='upload_images'),
+    path('upload_images/<int:product_id>/',
+         views.upload_images, name='upload_images'),
 
     # Simple jwt
     path('token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
@@ -31,9 +32,18 @@ urlpatterns = [
     path('place_order/', views.place_order, name='place_order'),
 
     # Utils
-    path('get_user_data/<int:user_id>/', views.get_user_data, name='get_user_data'),
-    path('add_product_sizes/<int:product_id>/', views.add_product_sizes, name='add_product_sizes'),
+    path('get_user_data/<int:user_id>/',
+         views.get_user_data, name='get_user_data'),
+    path('add_product_sizes/<int:product_id>/',
+         views.add_product_sizes, name='add_product_sizes'),
 
     # Search
     path('search/', views.SearchList.as_view(), name='get_search_data'),
+
+    # Wishlist
+    path('wishlist/', views.get_wishlist_items, name='get_wishlist_items'),
+    path('change_wishlist/<slug:slug>/',
+         views.change_wishlist, name='change_wishlist'),
+    path('if_in_wishlist/<slug:slug>/',
+         views.if_in_wishlist, name='if_in_wishlist'),
 ]

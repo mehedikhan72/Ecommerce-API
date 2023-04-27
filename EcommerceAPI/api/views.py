@@ -1,10 +1,9 @@
-
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem
-from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer, UserRegisterSerializer, OrderSerializer, OrderItemSerializer, UserDataSerializer1
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList
+from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer, UserRegisterSerializer, OrderSerializer, OrderItemSerializer, UserDataSerializer1, WishListSerializer
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -15,7 +14,6 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.exceptions import PermissionDenied
 
 # Create your views here.
-
 
 class ProductList(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
@@ -275,6 +273,40 @@ class SearchList(generics.ListCreateAPIView):
                 Q(category__name__icontains=query)
             ).order_by('-id')
             return qs
-        
+
         return Response({'error': 'No query was provided!'}, status=status.HTTP_400_BAD_REQUEST)
 
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_wishlist_items(request):
+    user = request.user
+    qs = WishList.objects.filter(user=user).order_by('-id')
+    serializer = WishListSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def if_in_wishlist(request, slug):
+    user = request.user
+    product = get_object_or_404(Product, slug=slug)
+    qs = WishList.objects.filter(user=user, product=product)
+    if qs.exists():
+        return Response({'message': True}, status=status.HTTP_200_OK)
+    else:
+        return Response({'message': False}, status=status.HTTP_200_OK)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_wishlist(request, slug):
+    user = request.user
+    product = get_object_or_404(Product, slug=slug)
+    qs = WishList.objects.filter(user=user, product=product)
+    if qs.exists():
+        qs.delete()
+        return Response({'message': 'Product removed from wishlist!'}, status=status.HTTP_200_OK)
+    else:
+        WishList.objects.create(user=user, product=product)
+        return Response({'message': 'Product added to wishlist!'}, status=status.HTTP_201_CREATED)
