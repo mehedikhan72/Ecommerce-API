@@ -55,7 +55,8 @@ class SimilarProductList(generics.ListCreateAPIView):
         category = get_object_or_404(Category, slug=slug)
         qs = Product.objects.filter(category=category).order_by('-id')[:12]
         return qs
-    
+
+
 class CategoryList(generics.ListCreateAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
@@ -260,3 +261,20 @@ def get_user_data(request, user_id):
     user = get_object_or_404(User, id=user_id)
     serializer = UserDataSerializer1(user)
     return Response(serializer.data)
+
+
+class SearchList(generics.ListCreateAPIView):
+    serializer_class = ProductSerializer
+
+    def get_queryset(self):
+        query = self.request.query_params.get('query', None)
+        if query:
+            qs = Product.objects.filter(
+                Q(name__icontains=query) |
+                Q(description__icontains=query) |
+                Q(category__name__icontains=query)
+            ).order_by('-id')
+            return qs
+        
+        return Response({'error': 'No query was provided!'}, status=status.HTTP_400_BAD_REQUEST)
+

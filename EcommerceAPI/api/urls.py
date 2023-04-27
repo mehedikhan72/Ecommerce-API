@@ -33,4 +33,7 @@ urlpatterns = [
     # Utils
     path('get_user_data/<int:user_id>/', views.get_user_data, name='get_user_data'),
     path('add_product_sizes/<int:product_id>/', views.add_product_sizes, name='add_product_sizes'),
+
+    # Search
+    path('search/', views.SearchList.as_view(), name='get_search_data'),
 ]
