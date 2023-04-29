@@ -2,8 +2,8 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList
-from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer, UserRegisterSerializer, OrderSerializer, OrderItemSerializer, UserDataSerializer1, WishListSerializer
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA
+from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer, UserRegisterSerializer, OrderSerializer, OrderItemSerializer, UserDataSerializer1, WishListSerializer, QnASerializer
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -14,6 +14,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from rest_framework.exceptions import PermissionDenied
 
 # Create your views here.
+
 
 class ProductList(generics.ListCreateAPIView):
     serializer_class = ProductSerializer
@@ -310,3 +311,67 @@ def change_wishlist(request, slug):
     else:
         WishList.objects.create(user=user, product=product)
         return Response({'message': 'Product added to wishlist!'}, status=status.HTTP_201_CREATED)
+
+
+class QnAList(generics.ListCreateAPIView):
+    serializer_class = QnASerializer
+
+    def get_queryset(self):
+        slug = self.kwargs['slug']
+
+        user = self.request.user
+        if user.is_moderator or user.is_admin:
+            qs = QnA.objects.filter(
+                product__slug=slug
+            ).order_by('-id')
+            return qs
+
+        qs = QnA.objects.filter(
+            product__slug=slug
+        ).exclude(
+            answer__exact=None
+        ).exclude(
+            answer=''
+        ).order_by('-id')
+        return qs
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def add_question(request, slug):
+    product = get_object_or_404(Product, slug=slug)
+    user = request.user
+    question = request.data['question']
+    if product and user and question:
+        QnA.objects.create(product=product, user=user, question=question)
+        return Response({'message': 'Question added successfully!'}, status=status.HTTP_201_CREATED)
+
+    return Response({'error': 'Something went wrong!'}, status=status.HTTP_400_BAD_REQUEST)
+
+@api_view(['POSt'])
+@permission_classes([IsAuthenticated])
+def add_answer(request, qna_id):
+    user = request.user
+    if user.is_admin or user.is_moderator:
+        answer = request.data['answer']
+        if answer:
+            qna = get_object_or_404(QnA, id=qna_id)
+            qna.answer = answer
+            qna.save()
+            return Response({'message': 'Answer added successfully!'}, status=status.HTTP_201_CREATED)
+        else:
+            return Response({'error': 'No answer found!'}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({'error': 'You are not authorized to perform this action!'}, status=status.HTTP_400_BAD_REQUEST)
+
+class UnansweredList(generics.ListAPIView):
+    serializer_class = QnASerializer
+
+    @permission_classes([IsAuthenticated])
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_admin or user.is_moderator:
+            qs = QnA.objects.filter(Q(answer__exact=None) | Q(answer__exact='')).order_by('id')
+            return qs
+
+        return Response({'error': 'You are not authorized to perform this action!'}, status=status.HTTP_400_BAD_REQUEST)

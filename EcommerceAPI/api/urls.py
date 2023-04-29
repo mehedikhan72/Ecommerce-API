@@ -6,7 +6,7 @@ from rest_framework_simplejwt.views import (
 )
 
 urlpatterns = [
-    # Products n category
+    # Products n category3Aa
     path('category/<slug:slug>/', views.ProductList.as_view()),
     path('product/<slug:slug>/', views.ProductDetail.as_view()),
     path('similar_products/<slug:slug>/', views.SimilarProductList.as_view()),
@@ -22,8 +22,8 @@ urlpatterns = [
          views.upload_images, name='upload_images'),
 
     # Simple jwt
-    path('token/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
+    path('token/', MyTokenObtainPairView.as_view()),
+    path('token/refresh/', TokenRefreshView.as_view()),
 
     # Register user
     path('register/user/', views.register_user, name='register'),
@@ -38,7 +38,7 @@ urlpatterns = [
          views.add_product_sizes, name='add_product_sizes'),
 
     # Search
-    path('search/', views.SearchList.as_view(), name='get_search_data'),
+    path('search/', views.SearchList.as_view()),
 
     # Wishlist
     path('wishlist/', views.get_wishlist_items, name='get_wishlist_items'),
@@ -46,4 +46,11 @@ urlpatterns = [
          views.change_wishlist, name='change_wishlist'),
     path('if_in_wishlist/<slug:slug>/',
          views.if_in_wishlist, name='if_in_wishlist'),
+
+    # QnA
+    path('qna/<slug:slug>/', views.QnAList.as_view()),
+    path('add_question/<slug:slug>/', views.add_question, name='add_question'),
+    path('add_answer/<int:qna_id>/', views.add_answer, name='add_answer'),
+    path('unanswered_questions/', views.UnansweredList.as_view(),
+         name='unanswered_questions')
 ]

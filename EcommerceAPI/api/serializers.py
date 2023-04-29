@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -85,3 +85,11 @@ class WishListSerializer(serializers.ModelSerializer):
     class Meta:
         model = WishList
         fields = ['id', 'user', 'product', 'date']
+
+class QnASerializer(serializers.ModelSerializer):
+    user = UserDataSerializer1()
+    answer = serializers.CharField(max_length=1000, required=False)
+    product = ProductSerializer(required=False)
+    class Meta:
+        model = QnA
+        fields = ['id', 'question', 'answer', 'date', 'product', 'user']
