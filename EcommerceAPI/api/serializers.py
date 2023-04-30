@@ -67,7 +67,7 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'user_id', 'username', 'first_name', 'last_name',
-                  'email', 'phone', 'address', 'date_ordered', 'delivered', 'shipping_charge']
+                  'email', 'phone', 'address', 'date_ordered', 'status', 'shipping_charge']
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -78,6 +78,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         model = OrderItem
         fields = ['id', 'order', 'product', 'quantity', 'size', 'price']
 
+
 class WishListSerializer(serializers.ModelSerializer):
     user = UserDataSerializer1()
     product = ProductSerializer()
@@ -86,10 +87,12 @@ class WishListSerializer(serializers.ModelSerializer):
         model = WishList
         fields = ['id', 'user', 'product', 'date']
 
+
 class QnASerializer(serializers.ModelSerializer):
     user = UserDataSerializer1()
     answer = serializers.CharField(max_length=1000, required=False)
     product = ProductSerializer(required=False)
+
     class Meta:
         model = QnA
         fields = ['id', 'question', 'answer', 'date', 'product', 'user']

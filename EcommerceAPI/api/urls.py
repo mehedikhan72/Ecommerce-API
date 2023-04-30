@@ -30,6 +30,9 @@ urlpatterns = [
 
     # Orders
     path('place_order/', views.place_order, name='place_order'),
+    path('orders/', views.OrderList.as_view(), name='orders'),
+    path('get_order_items/<int:order_id>/', views.get_order_items, name='get_order_items'),
+    path('change_order_status/<int:id>/', views.change_order_status, name='change_order_status'),
 
     # Utils
     path('get_user_data/<int:user_id>/',

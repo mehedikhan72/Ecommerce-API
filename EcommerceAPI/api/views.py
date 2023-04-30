@@ -235,7 +235,8 @@ def place_order(request):
         order = get_object_or_404(Order, id=order.id)
         product = get_object_or_404(Product, id=item['productData']['id'])
         quantity = item['quantity']
-        size = item['size']
+        size = item['size'][0]['size']
+        print(size)
 
         # Get product price from the backend since the user can change the price in the frontend.
         price = 0
@@ -348,6 +349,7 @@ def add_question(request, slug):
 
     return Response({'error': 'Something went wrong!'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 @api_view(['POSt'])
 @permission_classes([IsAuthenticated])
 def add_answer(request, qna_id):
@@ -364,14 +366,65 @@ def add_answer(request, qna_id):
     else:
         return Response({'error': 'You are not authorized to perform this action!'}, status=status.HTTP_400_BAD_REQUEST)
 
+
 class UnansweredList(generics.ListAPIView):
     serializer_class = QnASerializer
 
     @permission_classes([IsAuthenticated])
     def get_queryset(self):
         user = self.request.user
-        if user.is_admin or user.is_moderator:
-            qs = QnA.objects.filter(Q(answer__exact=None) | Q(answer__exact='')).order_by('id')
-            return qs
+        if user.is_authenticated:
+            if user.is_admin or user.is_moderator:
+                qs = QnA.objects.filter(Q(answer__exact=None) | Q(
+                    answer__exact='')).order_by('id')
 
-        return Response({'error': 'You are not authorized to perform this action!'}, status=status.HTTP_400_BAD_REQUEST)
+                # TODO: Send email to the user who asked the question.
+
+                return qs
+            return Response({'error': 'You are not authorized to perform this action!'}, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response({'error': 'You are not authenticated!'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class OrderList(generics.ListAPIView):
+    serializer_class = OrderSerializer
+
+    @permission_classes([IsAuthenticated])
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_authenticated:
+            if user.is_admin or user.is_moderator:
+                qs = Order.objects.all().order_by('-id')
+                return qs
+
+            raise PermissionDenied(
+                detail='You are not authorized to perform this action.')
+
+        raise PermissionDenied(detail='You are not authenticated.')
+
+
+@api_view(['GET'])
+def get_order_items(request, order_id):
+    qs = OrderItem.objects.filter(order__id=order_id)
+    serializer = OrderItemSerializer(qs, many=True)
+    return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def change_order_status(request, id):
+    user = request.user
+    if user.is_authenticated:
+        if user.is_admin or user.is_moderator:
+            status = request.data['status']
+            if status:
+                order = get_object_or_404(Order, id=id)
+                order.status = status
+                order.save()
+                return Response({'message': 'Order status changed successfully!'})
+            else:
+                return Response({'error': 'No status found!'})
+        else:
+            return Response({'error': 'You are not authorized to perform this action!'})
+
+    return Response({'error': 'You are not authenticated!'})

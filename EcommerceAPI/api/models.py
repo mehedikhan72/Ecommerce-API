@@ -94,7 +94,7 @@ class Order(models.Model):
     address = models.CharField(max_length=300, blank=True, null=True)
 
     date_ordered = models.DateTimeField(auto_now_add=True)
-    delivered = models.BooleanField(default=False)
+    status = models.CharField(max_length=100, default='Pending', null=True, blank=True)
     shipping_charge = models.FloatField(default=0.0)
 
     def __str__(self):
