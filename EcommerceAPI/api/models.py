@@ -94,7 +94,8 @@ class Order(models.Model):
     address = models.CharField(max_length=300, blank=True, null=True)
 
     date_ordered = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=100, default='Pending', null=True, blank=True)
+    status = models.CharField(
+        max_length=100, default='Pending', null=True, blank=True)
     shipping_charge = models.FloatField(default=0.0)
 
     def __str__(self):
@@ -102,6 +103,9 @@ class Order(models.Model):
             return f"{self.first_name} {self.last_name} orderedd on {self.date_ordered}"
         else:
             return f"{self.username} ordered on {self.date_ordered}"
+
+    def formatted_date(self):
+        return self.date_ordered.strftime('%H:%M:%S, %d/%m/%Y')
 
 
 class OrderItem(models.Model):
@@ -111,6 +115,7 @@ class OrderItem(models.Model):
     size = models.CharField(max_length=10)
     price = models.FloatField()
 
+
 class WishList(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -118,7 +123,8 @@ class WishList(models.Model):
 
     def __str__(self):
         return f"{self.user} added {self.product} on {self.added_on}"
-    
+
+
 class QnA(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)

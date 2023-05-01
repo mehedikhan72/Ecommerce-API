@@ -321,7 +321,7 @@ class QnAList(generics.ListCreateAPIView):
         slug = self.kwargs['slug']
 
         user = self.request.user
-        if user.is_moderator or user.is_admin:
+        if user.is_authenticated and (user.is_moderator or user.is_admin):
             qs = QnA.objects.filter(
                 product__slug=slug
             ).order_by('-id')
@@ -409,7 +409,6 @@ def get_order_items(request, order_id):
     serializer = OrderItemSerializer(qs, many=True)
     return Response(serializer.data)
 
-
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_order_status(request, id):
@@ -428,3 +427,23 @@ def change_order_status(request, id):
             return Response({'error': 'You are not authorized to perform this action!'})
 
     return Response({'error': 'You are not authenticated!'})
+
+
+@api_view(['GET'])
+def new_arrivals(request):
+    qs = Product.objects.all().order_by('-id')[:12]
+    serializer = ProductSerializer(qs, many=True)
+    return Response(serializer.data)
+
+# track orders
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_user_orders(request):
+    user = request.user
+    if user.is_authenticated:
+        qs = Order.objects.filter(username=user.username).order_by('-id')
+        serializer = OrderSerializer(qs, many=True)
+        return Response(serializer.data)
+    else:
+        return Response({'error': 'You are not authenticated!'})

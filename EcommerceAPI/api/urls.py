@@ -31,8 +31,10 @@ urlpatterns = [
     # Orders
     path('place_order/', views.place_order, name='place_order'),
     path('orders/', views.OrderList.as_view(), name='orders'),
-    path('get_order_items/<int:order_id>/', views.get_order_items, name='get_order_items'),
-    path('change_order_status/<int:id>/', views.change_order_status, name='change_order_status'),
+    path('get_order_items/<int:order_id>/',
+         views.get_order_items, name='get_order_items'),
+    path('change_order_status/<int:id>/',
+         views.change_order_status, name='change_order_status'),
 
     # Utils
     path('get_user_data/<int:user_id>/',
@@ -55,5 +57,11 @@ urlpatterns = [
     path('add_question/<slug:slug>/', views.add_question, name='add_question'),
     path('add_answer/<int:qna_id>/', views.add_answer, name='add_answer'),
     path('unanswered_questions/', views.UnansweredList.as_view(),
-         name='unanswered_questions')
+         name='unanswered_questions'),
+
+    # New arrivals
+    path('new_arrivals/', views.new_arrivals, name='new_arrivals'),
+
+    # Tracking orders
+    path('get_user_orders/', views.get_user_orders, name='get_user_orders'),
 ]
