@@ -409,6 +409,7 @@ def get_order_items(request, order_id):
     serializer = OrderItemSerializer(qs, many=True)
     return Response(serializer.data)
 
+
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def change_order_status(request, id):
@@ -437,6 +438,7 @@ def new_arrivals(request):
 
 # track orders
 
+
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
 def get_user_orders(request):
@@ -447,3 +449,45 @@ def get_user_orders(request):
         return Response(serializer.data)
     else:
         return Response({'error': 'You are not authenticated!'})
+
+
+@api_view(['GET'])
+def get_moderators(request):
+    if request.user.is_authenticated:
+        if request.user.is_admin:
+            qs = User.objects.filter(is_moderator=True)
+            serializer = UserDataSerializer1(qs, many=True)
+            return Response(serializer.data)
+        else:
+            return Response({'error': 'You are not authorized!'})
+    else:
+        return Response({'error': 'You are not logged in!'})
+
+
+@api_view(['PUT'])
+def change_moderator_status(request, user_id):
+    if request.user.is_authenticated:
+        if request.user.is_admin:
+            user = get_object_or_404(User, id=user_id)
+            user.is_moderator = not user.is_moderator
+            user.save()
+            return Response({'message': 'Moderator status changed successfully!'})
+        else:
+            return Response({'error': 'You are not authorized!'})
+    else:
+        return Response({'error': 'You are not logged in!'})
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def get_users(request, query):
+    if request.user.is_admin and query != None:
+        qs = User.objects.filter(Q(username__icontains=query) |
+                                 Q(email__icontains=query) |
+                                 Q(first_name__icontains=query) |
+                                 Q(last_name__icontains=query)
+                                 ).exclude(
+            is_moderator=True
+        )[:20]
+        serializer = UserDataSerializer1(qs, many=True)
+        return Response(serializer.data)

@@ -64,4 +64,10 @@ urlpatterns = [
 
     # Tracking orders
     path('get_user_orders/', views.get_user_orders, name='get_user_orders'),
+
+    # managing moderators
+    path('get_moderators/', views.get_moderators, name='get_moderators'),
+    path('change_moderator_status/<int:user_id>/', views.change_moderator_status, name='change_moderator_status'),
+    path('get_users/<str:query>/', views.get_users, name='get_users')
+
 ]
