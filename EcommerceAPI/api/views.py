@@ -1,3 +1,4 @@
+from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
@@ -258,9 +259,32 @@ def place_order(request):
 
 @api_view(['GET'])
 def get_user_data(request, user_id):
+    user = request.user
+    if user.id != user_id:
+        raise PermissionDenied(
+            "You are not authorized to take this action!")
     user = get_object_or_404(User, id=user_id)
     serializer = UserDataSerializer1(user)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def edit_account(request, id):
+    requested_user = request.user
+    if requested_user.id != id:
+        raise PermissionDenied(
+            "You are not authorized to take this action!")
+
+    user = get_object_or_404(User, id=id)
+    user.first_name = request.data['first_name']
+    user.last_name = request.data['last_name']
+    user.email = request.data['email']
+    user.phone = request.data['phone']
+    user.address = request.data['address']
+    user.save()
+
+    return Response({'message': 'Account edited successfully!'}, status=status.HTTP_200_OK)
 
 
 class SearchList(generics.ListCreateAPIView):
@@ -491,3 +515,20 @@ def get_users(request, query):
         )[:20]
         serializer = UserDataSerializer1(qs, many=True)
         return Response(serializer.data)
+
+@api_view(['GET'])
+def send_test_email(request):
+    sender_email = 'halalbrotherstest@gmail.com'
+    receiver_email = request.user.email
+    subject = 'Test Email'
+    message = 'This is a test email.'
+
+    send_mail(
+        subject,
+        message,
+        sender_email,
+        [receiver_email],
+        fail_silently=False,
+    )
+
+    return Response({'message': 'Email sent successfully!'})

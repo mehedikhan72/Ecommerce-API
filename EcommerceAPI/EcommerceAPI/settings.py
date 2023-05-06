@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
+import environ
 from datetime import timedelta
 import os
 from pathlib import Path
@@ -28,7 +29,6 @@ SECRET_KEY = 'django-insecure-o#nsr+yr-^xvi#dv+s%g-x_mdq*#=x38c(fqqd%f3v4zv0)+mb
 DEBUG = True
 
 ALLOWED_HOSTS = []
-
 
 # Application definition
 
@@ -60,6 +60,7 @@ REST_FRAMEWORK = {
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 2,
 }
+
 SIMPLE_JWT = {
     # TODO: change to 5 minutes
     "ACCESS_TOKEN_LIFETIME": timedelta(minutes=60),
@@ -194,3 +195,16 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Init environment variables
+env = environ.Env()
+environ.Env.read_env()
+
+EMAIL_USE_TLS = True
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+# EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+# EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+Email_HOST_USER = 'halalbrotherstest@gmail.com'
+EMAIL_HOST_PASSWORD = 'Halal12345'

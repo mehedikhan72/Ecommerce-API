@@ -41,6 +41,7 @@ urlpatterns = [
          views.get_user_data, name='get_user_data'),
     path('add_product_sizes/<int:product_id>/',
          views.add_product_sizes, name='add_product_sizes'),
+    path('edit_account/<int:id>', views.edit_account, name='edit_account'),
 
     # Search
     path('search/', views.SearchList.as_view()),
@@ -67,7 +68,10 @@ urlpatterns = [
 
     # managing moderators
     path('get_moderators/', views.get_moderators, name='get_moderators'),
-    path('change_moderator_status/<int:user_id>/', views.change_moderator_status, name='change_moderator_status'),
-    path('get_users/<str:query>/', views.get_users, name='get_users')
+    path('change_moderator_status/<int:user_id>/',
+         views.change_moderator_status, name='change_moderator_status'),
+    path('get_users/<str:query>/', views.get_users, name='get_users'),
+
+    path('send_test_email/', views.send_test_email, name='send_test_email'),
 
 ]
