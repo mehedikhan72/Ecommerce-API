@@ -532,3 +532,5 @@ def send_test_email(request):
     )
 
     return Response({'message': 'Email sent successfully!'})
+
+# TODO: Need to use a new sslcommerz acc for production. This is just for testing. plus this was accidentally committed to github.
