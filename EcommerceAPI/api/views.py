@@ -1,9 +1,3 @@
-import os
-from django.shortcuts import redirect
-import requests
-from django.http import HttpResponseBadRequest
-import uuid
-from sslcommerz_lib import SSLCOMMERZ
 from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.db.models import Q
@@ -221,141 +215,18 @@ def register_user(request):
     return Response({'error': serializer.errors}, status=status.HTTP_400_BAD_REQUEST)
 
 
-# Payment Logic Begins
-
-# TODO: use env variables for all of the sensitive data
-# TODO: might store some other payment related info in the db.
-# TODO: Add more security layers to this..(the ones chatGPT mentioned.)
-
-@api_view(['POST'])
-def payment_success(request):
-    transaction_id = request.POST.get('tran_id')
-    try:
-        order = Order.objects.get(transaction_id=transaction_id)
-    except Order.DoesNotExist:
-        return HttpResponseBadRequest("Invalid transaction ID")
-
-    val_id = request.POST.get('val_id')
-    store_id = os.environ.get('STORE_ID')
-    store_passwd = os.environ.get('STORE_PASSWD')
-    print(store_id)
-
-    # Construct the validation API URL
-    url = f"https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id={val_id}&store_id={store_id}&store_passwd={store_passwd}&format=json"
-
-    response = requests.get(url, verify=True)
-    response_json = response.json()
-
-    if response_json['status'] == 'VALID':
-        order.online_paid = True
-        order.save()
-        return redirect(f'http://localhost:3000/payment-result?status=success')
-    else:
-        order.delete()
-        return redirect(f'http://localhost:3000/payment-result?status=fail')
-
-
-@api_view(['POST'])
-def payment_fail(request):
-    transaction_id = request.POST.get('tran_id')
-    order = Order.objects.get(transaction_id=transaction_id)
-    order.delete()
-
-    return redirect(f'http://localhost:3000/payment-result?status=fail')
-
-
-@api_view(['POST'])
-def payment_cancel(request):
-    transaction_id = request.POST.get('tran_id')
-    order = Order.objects.get(transaction_id=transaction_id)
-    order.delete()
-
-    return redirect(f'http://localhost:3000/payment-result?status=cancel')
-
-
-def get_total(order_data):
-    order_items_array = order_data['order_items']
-    total = 0
-
-    for item in order_items_array:
-        if item['productData']['discount_price']:
-            total += item['productData']['discount_price'] * item['quantity']
-        else:
-            total += item['productData']['regular_price'] * item['quantity']
-
-    total += order_data['shipping_charge']
-    return total
-
-
-def request_ssl_session(order_data, transaction_id):
-    total = get_total(order_data)
-    settings = {
-        'store_id': os.environ.get('STORE_ID'),
-        'store_pass': os.environ.get('STORE_PASSWD'),
-        'issandbox': True
-    }
-
-    sslcz = SSLCOMMERZ(settings)
-    post_body = {}
-    post_body['total_amount'] = total
-    post_body['currency'] = "BDT"
-    post_body['tran_id'] = transaction_id
-    post_body['success_url'] = "http://127.0.0.1:8000/api/payment/success/"
-    post_body['fail_url'] = "http://127.0.0.1:8000/api/payment/fail/"
-    post_body['cancel_url'] = "http://127.0.0.1:8000/api/payment/cancel/"
-    post_body['emi_option'] = 0
-    post_body['cus_name'] = order_data['order']['first_name']
-    post_body['cus_email'] = order_data['order']['email']
-    post_body['cus_phone'] = order_data['order']['phone']
-    post_body['cus_add1'] = order_data['order']['address']
-    post_body['cus_city'] = "Dhaka"
-    post_body['cus_country'] = "Bangladesh"
-    post_body['shipping_method'] = "NO"
-    post_body['multi_card_name'] = ""
-    post_body['num_of_item'] = 1
-    post_body['product_name'] = "Test"
-    post_body['product_category'] = "Test Category"
-    post_body['product_profile'] = "general"
-
-    return sslcz.createSession(post_body)  # API response
-
-# Payment Logic Ends
-
 # TODO: reduce size quantities based on new orders.
-# TODO: Fix shipping charge logic. 
-
-
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def place_order(request):
     # I will have to create an Order first and then the order items.
     # I will have to check if the user is authenticated or not.
-
     serializer = OrderSerializer(data=request.data['order'])
     order = None
     if serializer.is_valid():
         order = serializer.save()
         order.shipping_charge = request.data['shipping_charge']
-        order.payment_method = request.data['payment_method']
-        total = get_total(request.data)
-        order.total = total
-        if request.data['shipping_charge'] == 50:
-            order.outside_comilla = False
-        else:
-            order.outside_comilla = True
-
-        # if payment is online, begin payment logic. else bypass the order for Cash on delivery.
-        if request.data['payment_method'] == 'online':
-            transaction_id = uuid.uuid4().hex
-            order.transaction_id = transaction_id
-            order.online_paid = False
-            order.save()
-
-            ssl_response = request_ssl_session(request.data, transaction_id)
-            if not ssl_response['status'] == 'SUCCESS':
-                return Response({'error': 'Payment gateway error.'}, status=status.HTTP_400_BAD_REQUEST)
-        elif request.data['payment_method'] == 'COD':
-            order.save()
+        order.save()
     else:
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
@@ -383,10 +254,8 @@ def place_order(request):
             except IntegrityError:
                 return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
-    if request.data['payment_method'] == 'online':
-        return Response(ssl_response, status=status.HTTP_201_CREATED)
-
     return Response({'message': 'Order placed successfully!'}, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET'])
 def get_user_data(request, user_id):
@@ -647,12 +516,19 @@ def get_users(request, query):
         serializer = UserDataSerializer1(qs, many=True)
         return Response(serializer.data)
 
+@api_view(['GET'])
+def send_test_email(request):
+    sender_email = 'halalbrotherstest@gmail.com'
+    receiver_email = request.user.email
+    subject = 'Test Email'
+    message = 'This is a test email.'
 
-@api_view(['POST'])
-def change_pass_test(request):
-    print(request.user)
-    user = User.objects.get(username=request.user.username)
-    new_pass = request.data['new_pass']
-    user.set_password(new_pass)
-    user.save()
-    return Response({'message': 'Password changed successfully!'})
+    send_mail(
+        subject,
+        message,
+        sender_email,
+        [receiver_email],
+        fail_silently=False,
+    )
+
+    return Response({'message': 'Email sent successfully!'})
