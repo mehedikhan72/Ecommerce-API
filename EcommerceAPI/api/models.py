@@ -97,6 +97,11 @@ class Order(models.Model):
     status = models.CharField(
         max_length=100, default='Pending', null=True, blank=True)
     shipping_charge = models.FloatField(default=0.0)
+    outside_comilla = models.BooleanField(default=False)
+    payment_method = models.CharField(max_length=100, default='online')
+    total = models.FloatField(default=0.0)
+    transaction_id = models.CharField(max_length=256, blank=True, null=True) # if online payment.
+    online_paid = models.BooleanField(default=False) # only for online payments.
 
     def __str__(self):
         if self.first_name:

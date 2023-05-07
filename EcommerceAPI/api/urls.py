@@ -71,7 +71,10 @@ urlpatterns = [
     path('change_moderator_status/<int:user_id>/',
          views.change_moderator_status, name='change_moderator_status'),
     path('get_users/<str:query>/', views.get_users, name='get_users'),
+    path('change_pass_test/', views.change_pass_test, name='change_pass_test'),
 
-    path('send_test_email/', views.send_test_email, name='send_test_email'),
-
+    # Payment
+    path('payment/success/', views.payment_success, name='payment_success'),
+    path('payment/fail/', views.payment_fail, name='payment_fail'),
+    path('payment/cancel/', views.payment_cancel, name='payment_cancel'),
 ]

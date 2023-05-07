@@ -10,7 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
 
-import environ
+import dotenv
 from datetime import timedelta
 import os
 from pathlib import Path
@@ -196,15 +196,7 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# environment variables
 
-# Init environment variables
-env = environ.Env()
-environ.Env.read_env()
+dotenv.load_dotenv()
 
-EMAIL_USE_TLS = True
-EMAIL_HOST = 'smtp.gmail.com'
-EMAIL_PORT = 587
-# EMAIL_HOST_USER = env('EMAIL_HOST_USER')
-# EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
-Email_HOST_USER = 'halalbrotherstest@gmail.com'
-EMAIL_HOST_PASSWORD = 'Halal12345'
