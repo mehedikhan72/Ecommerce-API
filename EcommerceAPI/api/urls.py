@@ -73,6 +73,15 @@ urlpatterns = [
     path('get_users/<str:query>/', views.get_users, name='get_users'),
     path('change_pass_test/', views.change_pass_test, name='change_pass_test'),
 
+    # Reviews
+    path('get_reviews/<slug:slug>/',
+         views.ReviewList.as_view(), name='get_reviews'),
+    path('create_review/<slug:slug>/', views.create_review, name='create_review'),
+    path('is_eligible_reviewer/<slug:slug>/',
+         views.is_eligible_reviewer, name='is_eligible_reviewer'),
+    path('get_avg_rating/<slug:slug>/',
+         views.get_avg_rating, name='get_avg_rating'),
+
     # Payment
     path('payment/success/', views.payment_success, name='payment_success'),
     path('payment/fail/', views.payment_fail, name='payment_fail'),

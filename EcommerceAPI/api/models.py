@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.utils.text import slugify
 
@@ -100,8 +101,10 @@ class Order(models.Model):
     outside_comilla = models.BooleanField(default=False)
     payment_method = models.CharField(max_length=100, default='online')
     total = models.FloatField(default=0.0)
-    transaction_id = models.CharField(max_length=256, blank=True, null=True) # if online payment.
-    online_paid = models.BooleanField(default=False) # only for online payments.
+    # if online payment.
+    transaction_id = models.CharField(max_length=256, blank=True, null=True)
+    # only for online payments.
+    online_paid = models.BooleanField(default=False)
 
     def __str__(self):
         if self.first_name:
@@ -139,3 +142,32 @@ class QnA(models.Model):
 
     def __str__(self):
         return f"{self.question}"
+
+
+# Reviews. For now only registered users can review.
+# I'll have a new model for this, with user and product, that way
+# I will check if the user really purchased the product or not, I wont have to check a whole lot of things to know if the
+# user is elligible to review or not. I'll just check if the user has an instance of this model for this product or not.
+# Once the order is confirmed and payment is done, i'll save the instance for this model.
+
+class EligibleReviewer(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    order = models.ForeignKey(Order, on_delete=models.CASCADE)
+
+    def __str__(self):
+        return f'{self.user} is elligible to review "{self.product.name}"'
+
+
+class Review(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    rating = models.IntegerField(
+        validators=[MinValueValidator(1), MaxValueValidator(5)])
+    review = models.TextField()
+    date = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"{self.user} reviewed {self.product} on {self.date}"
+
+# TODO: Try to fix the date format in the backend, like travelMedia.

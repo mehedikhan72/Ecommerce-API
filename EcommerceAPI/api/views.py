@@ -1,3 +1,4 @@
+from django.db.models import Case, When, Value, CharField
 import os
 from django.shortcuts import redirect
 import requests
@@ -9,8 +10,9 @@ from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
 from django.shortcuts import render, get_object_or_404
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA, EligibleReviewer, Review
 from .serializers import CategorySerializer, ProductSerializer, ImageSerializer, ProductSizeSerializer, UserRegisterSerializer, OrderSerializer, OrderItemSerializer, UserDataSerializer1, WishListSerializer, QnASerializer
+from .serializers import ReviewSerializer
 from rest_framework import generics, status, permissions
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -68,10 +70,79 @@ class CategoryList(generics.ListCreateAPIView):
     serializer_class = CategorySerializer
 
 
+class ReviewList(generics.ListCreateAPIView):
+    serializer_class = ReviewSerializer
+
+    def get_queryset(self):
+        slug = self.kwargs['slug']
+        product = get_object_or_404(Product, slug=slug)
+        qs = Review.objects.filter(product=product).order_by('-id')
+        return qs
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def is_eligible_reviewer(request, slug):
+    user = request.user
+    if user.is_authenticated:
+        product = get_object_or_404(Product, slug=slug)
+        eligible_reviewer = EligibleReviewer.objects.filter(
+            user=user, product=product)
+
+        if eligible_reviewer:
+            # Check if review already exists
+            review = Review.objects.filter(user=user, product=product)
+            if review:
+                return Response({'is_eligible': False})
+            else:
+                return Response({'is_eligible': True})
+        else:
+            return Response({'is_eligible': False})
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def create_review(request, slug):
+    user = request.user
+    if user.is_authenticated:
+        # Look for eligibility
+        product = get_object_or_404(Product, slug=slug)
+        eligible_reviewer = EligibleReviewer.objects.filter(
+            user=user, product=product)
+
+        if not eligible_reviewer:
+            raise PermissionDenied(
+                "You are not eligible to review this product!")
+        else:
+            serializer = ReviewSerializer(data=request.data)
+            if serializer.is_valid():
+                serializer.save(user=user, product=product)
+                return Response(serializer.data)
+            else:
+                return Response(serializer.errors)
+
+    else:
+        raise PermissionDenied(
+            "Credentials were not provided!")
+    
+@api_view(['GET'])
+def get_avg_rating(request, slug):
+    product = get_object_or_404(Product, slug=slug)
+    reviews = Review.objects.filter(product=product)
+
+    avg = 0
+    if reviews:
+        for review in reviews:
+            avg += review.rating
+
+        avg = avg / len(reviews)
+
+    return Response({'avg_rating': avg})
+
+
 @api_view(['GET'])
 @permission_classes([AllowAny])
 def get_images(request, product_id):
-    print(product_id)
     product = get_object_or_404(Product, id=product_id)
     images = ProductImage.objects.filter(product=product)
     serializer = ImageSerializer(images, many=True)
@@ -85,7 +156,6 @@ def upload_images(request, product_id):
     if user.is_moderator or user.is_admin:
         product = get_object_or_404(Product, id=product_id)
         images = request.FILES.getlist('images')
-        print(images)
 
         if not images:
             return JsonResponse({
@@ -238,7 +308,6 @@ def payment_success(request):
     val_id = request.POST.get('val_id')
     store_id = os.environ.get('STORE_ID')
     store_passwd = os.environ.get('STORE_PASSWD')
-    print(store_id)
 
     # Construct the validation API URL
     url = f"https://sandbox.sslcommerz.com/validator/api/validationserverAPI.php?val_id={val_id}&store_id={store_id}&store_passwd={store_passwd}&format=json"
@@ -322,7 +391,17 @@ def request_ssl_session(order_data, transaction_id):
 # Payment Logic Ends
 
 # TODO: reduce size quantities based on new orders.
-# TODO: Fix shipping charge logic. 
+# TODO: Fix shipping charge logic.
+
+
+def create_eligible_reviewer(user, product_id, order_id):
+    product = get_object_or_404(Product, id=product_id)
+    order = get_object_or_404(Order, id=order_id)
+
+    if user and product and order:
+        eligible_reviewer = EligibleReviewer.objects.create(
+            user=user, product=product, order=order)
+        eligible_reviewer.save()
 
 
 @api_view(['POST'])
@@ -366,7 +445,11 @@ def place_order(request):
         product = get_object_or_404(Product, id=item['productData']['id'])
         quantity = item['quantity']
         size = item['size'][0]['size']
-        print(size)
+
+        if request.user.is_authenticated and item['productData']['id'] and order.id:
+            # Create Eligibe instance
+            create_eligible_reviewer(
+                request.user, item['productData']['id'], order.id)
 
         # Get product price from the backend since the user can change the price in the frontend.
         price = 0
@@ -387,6 +470,7 @@ def place_order(request):
         return Response(ssl_response, status=status.HTTP_201_CREATED)
 
     return Response({'message': 'Order placed successfully!'}, status=status.HTTP_201_CREATED)
+
 
 @api_view(['GET'])
 def get_user_data(request, user_id):
@@ -477,9 +561,8 @@ class QnAList(generics.ListCreateAPIView):
 
         user = self.request.user
         if user.is_authenticated and (user.is_moderator or user.is_admin):
-            qs = QnA.objects.filter(
-                product__slug=slug
-            ).order_by('-id')
+            qs = QnA.objects.filter(product__slug=slug).order_by(
+                'answer', '-id')    
             return qs
 
         qs = QnA.objects.filter(
@@ -549,7 +632,11 @@ class OrderList(generics.ListAPIView):
         user = self.request.user
         if user.is_authenticated:
             if user.is_admin or user.is_moderator:
-                qs = Order.objects.all().order_by('-id')
+                qs = Order.objects.all().order_by(Case(
+                    When(status='Pending', then=Value('A')),
+                    default=Value('B'),
+                    output_field=CharField(),
+                ), '-id')
                 return qs
 
             raise PermissionDenied(
@@ -576,6 +663,7 @@ def change_order_status(request, id):
                 order = get_object_or_404(Order, id=id)
                 order.status = status
                 order.save()
+                # TODO: Send email to the user about the status change.
                 return Response({'message': 'Order status changed successfully!'})
             else:
                 return Response({'error': 'No status found!'})
@@ -650,9 +738,11 @@ def get_users(request, query):
 
 @api_view(['POST'])
 def change_pass_test(request):
-    print(request.user)
     user = User.objects.get(username=request.user.username)
     new_pass = request.data['new_pass']
     user.set_password(new_pass)
     user.save()
     return Response({'message': 'Password changed successfully!'})
+
+
+# TODO: Need new sslcommerz account for production.
