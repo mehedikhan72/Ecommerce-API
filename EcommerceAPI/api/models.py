@@ -46,6 +46,9 @@ class Product(models.Model):
     slug = models.SlugField(blank=True, null=True, unique=True)
     intro_image = models.ImageField(
         upload_to='img', default=None, null=True, blank=True)
+    total_ratings = models.FloatField(default=0)
+    total_reviews = models.IntegerField(default=0)
+    avg_rating = models.FloatField(default=0)
 
     def save(self, *args, **kwargs):
         self.slug = slugify(self.name)

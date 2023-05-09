@@ -116,6 +116,10 @@ def create_review(request, slug):
         else:
             serializer = ReviewSerializer(data=request.data)
             if serializer.is_valid():
+                product.total_ratings += serializer.validated_data['rating']
+                product.total_reviews += 1
+                product.avg_rating = product.total_ratings / product.total_reviews
+                product.save()
                 serializer.save(user=user, product=product)
                 return Response(serializer.data)
             else:
@@ -124,21 +128,6 @@ def create_review(request, slug):
     else:
         raise PermissionDenied(
             "Credentials were not provided!")
-
-
-@api_view(['GET'])
-def get_avg_rating(request, slug):
-    product = get_object_or_404(Product, slug=slug)
-    reviews = Review.objects.filter(product=product)
-
-    avg = 0
-    if reviews:
-        for review in reviews:
-            avg += review.rating
-
-        avg = avg / len(reviews)
-
-    return Response({'avg_rating': avg})
 
 
 @api_view(['GET'])
@@ -157,6 +146,14 @@ def upload_images(request, product_id):
     if user.is_moderator or user.is_admin:
         product = get_object_or_404(Product, id=product_id)
         images = request.FILES.getlist('images')
+
+        print(images)
+
+        # Delete all the existing images(for edit) of this product if new images are provided
+        if images:
+            product_images = ProductImage.objects.filter(product=product)
+            for product_image in product_images:
+                product_image.delete()
 
         if not images:
             return JsonResponse({
@@ -191,7 +188,25 @@ def add_product_sizes(request, product_id):
     user = request.user
     if user.is_moderator or user.is_admin:
         product = get_object_or_404(Product, id=product_id)
-        sizes = request.data
+        sizes = request.data['sizes']
+        print(sizes)
+
+        # Make sure the sizes quantity count is the same as stocks count
+        stock = int(request.data['stock'])
+        size_stock = 0
+
+        for s in sizes:
+            size_stock += s['available_quantity']
+
+        if size_stock != stock:
+            return JsonResponse({
+                'error': 'Sizes quantity count is not the same as stocks count!'
+            })
+
+        # Delete existing sizes(for edit) of this product
+        product_sizes = ProductSize.objects.filter(product=product)
+        for product_size in product_sizes:
+            product_size.delete()
 
         if not sizes:
             return JsonResponse({
@@ -307,8 +322,6 @@ def reduce_quantity_ONLINE(order):
         product.stock -= item.quantity
         product.save()
         product_size.save()
-
-    
 
 
 @api_view(['POST'])
@@ -806,5 +819,24 @@ def change_pass_test(request):
     user.save()
     return Response({'message': 'Password changed successfully!'})
 
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def edit_product(request, slug):
+    user = request.user
+    if user.is_authenticated and (user.is_admin or user.is_moderator):
+        product = get_object_or_404(Product, slug=slug)
+        serializer = ProductSerializer(product, data=request.data['product'])
+        if serializer.is_valid():
+            serializer.save()
+            category = get_object_or_404(
+                Category, id=request.data['category']['category']['id'])
+            product.category = category
+            product.save()
+
+            return Response({'message': 'Product updated successfully!'})
+        return Response(serializer.errors)
+
+    return Response({'error': 'You are not authorized!'})
 
 # TODO: Need new sslcommerz account for production.
