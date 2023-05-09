@@ -124,7 +124,8 @@ def create_review(request, slug):
     else:
         raise PermissionDenied(
             "Credentials were not provided!")
-    
+
+
 @api_view(['GET'])
 def get_avg_rating(request, slug):
     product = get_object_or_404(Product, slug=slug)
@@ -293,9 +294,22 @@ def register_user(request):
 
 # Payment Logic Begins
 
-# TODO: use env variables for all of the sensitive data
 # TODO: might store some other payment related info in the db.
 # TODO: Add more security layers to this..(the ones chatGPT mentioned.)
+
+def reduce_quantity_ONLINE(order):
+    order_items = OrderItem.objects.filter(order=order)
+    for item in order_items:
+        product_size = get_object_or_404(
+            ProductSize, product=item.product, size=item.size)
+        product_size.available_quantity -= item.quantity
+        product = item.product
+        product.stock -= item.quantity
+        product.save()
+        product_size.save()
+
+    
+
 
 @api_view(['POST'])
 def payment_success(request):
@@ -317,6 +331,8 @@ def payment_success(request):
 
     if response_json['status'] == 'VALID':
         order.online_paid = True
+        # Reduce quantity of products
+        reduce_quantity_ONLINE(order)
         order.save()
         return redirect(f'http://localhost:3000/payment-result?status=success')
     else:
@@ -404,6 +420,39 @@ def create_eligible_reviewer(user, product_id, order_id):
         eligible_reviewer.save()
 
 
+def is_item_available(item):
+    product = get_object_or_404(Product, id=item['productData']['id'])
+    quantity = item['quantity']
+    size = item['size'][0]['size']
+
+    # check if the productSize is available.
+    product_size = get_object_or_404(ProductSize, product=product, size=size)
+    if product_size.available_quantity >= quantity:
+        return True
+    else:
+        return False
+
+
+def get_item_unavailable_error_message(item):
+    product = get_object_or_404(Product, id=item['productData']['id'])
+    size = item['size'][0]['size']
+    quantity = item['quantity']
+    product_size = get_object_or_404(ProductSize, product=product, size=size)
+    return f'{quantity} items of size "{size}" of product "{product.name}" is not available. Only {product_size.available_quantity} items are available. Please try again.'
+
+
+def reduce_quantity_COD(item):
+    product = get_object_or_404(Product, id=item['productData']['id'])
+    quantity = item['quantity']
+    size = item['size'][0]['size']
+
+    product_size = get_object_or_404(ProductSize, product=product, size=size)
+    product_size.available_quantity -= quantity
+    product.stock -= quantity
+    product.save()
+    product_size.save()
+
+
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def place_order(request):
@@ -459,6 +508,17 @@ def place_order(request):
             price = product.regular_price * quantity
 
         if order and product and quantity and size and price:
+
+            available = is_item_available(item)
+            if not available:
+                print('Item not available')
+                order.delete()
+                message = get_item_unavailable_error_message(item)
+                return Response({'error': message})
+
+            if request.data['payment_method'] == 'COD':
+                reduce_quantity_COD(item)
+
             try:
                 order_item = OrderItem.objects.create(
                     order=order, product=product, quantity=quantity, size=size, price=price)
@@ -466,10 +526,12 @@ def place_order(request):
             except IntegrityError:
                 return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
+    # TODO: Check if the sizes and quantity are available, if yes, reduce the quantity. else delete the order and return a nice error message to the frontend.
+
     if request.data['payment_method'] == 'online':
         return Response(ssl_response, status=status.HTTP_201_CREATED)
 
-    return Response({'message': 'Order placed successfully!'}, status=status.HTTP_201_CREATED)
+    return Response({'success': 'Order placed successfully!'}, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -562,7 +624,7 @@ class QnAList(generics.ListCreateAPIView):
         user = self.request.user
         if user.is_authenticated and (user.is_moderator or user.is_admin):
             qs = QnA.objects.filter(product__slug=slug).order_by(
-                'answer', '-id')    
+                'answer', '-id')
             return qs
 
         qs = QnA.objects.filter(
