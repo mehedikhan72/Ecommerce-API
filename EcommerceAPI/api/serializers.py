@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA
+from .models import Category, Product, ProductImage, ProductSize, User, Order, OrderItem, WishList, QnA, Review
 
 
 class CategorySerializer(serializers.ModelSerializer):
@@ -14,7 +14,8 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ['id', 'name', 'description', 'regular_price',
-                  'discount_price', 'stock', 'slug', 'intro_image', 'category']
+                  'discount_price', 'stock', 'slug', 'intro_image', 'total_ratings',
+                  'total_reviews', 'avg_rating', 'category']
 
 
 class ImageSerializer(serializers.ModelSerializer):
@@ -67,7 +68,8 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'user_id', 'username', 'first_name', 'last_name',
-                  'email', 'phone', 'address', 'date_ordered', 'status', 'shipping_charge']
+                  'email', 'phone', 'address', 'date_ordered', 'status', 'shipping_charge',
+                  'outside_comilla', 'payment_method', 'total', 'transaction_id', 'online_paid']
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
@@ -96,3 +98,12 @@ class QnASerializer(serializers.ModelSerializer):
     class Meta:
         model = QnA
         fields = ['id', 'question', 'answer', 'date', 'product', 'user']
+
+
+class ReviewSerializer(serializers.ModelSerializer):
+    user = UserDataSerializer1(required=False)
+    product = ProductSerializer(required=False)
+
+    class Meta:
+        model = Review
+        fields = ['id', 'review', 'rating', 'date', 'product', 'user']
