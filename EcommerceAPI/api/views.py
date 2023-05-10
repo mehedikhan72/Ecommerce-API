@@ -524,7 +524,6 @@ def place_order(request):
 
             available = is_item_available(item)
             if not available:
-                print('Item not available')
                 order.delete()
                 message = get_item_unavailable_error_message(item)
                 return Response({'error': message})
@@ -536,6 +535,10 @@ def place_order(request):
                 order_item = OrderItem.objects.create(
                     order=order, product=product, quantity=quantity, size=size, price=price)
                 order_item.save()
+
+                # increase sold count for products
+                product.sold += quantity
+                product.save()
             except IntegrityError:
                 return Response({'error': 'Something went wrong'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -838,5 +841,11 @@ def edit_product(request, slug):
         return Response(serializer.errors)
 
     return Response({'error': 'You are not authorized!'})
+
+@api_view(['GET'])
+def get_top_products(request):
+    qs = Product.objects.all().order_by('-sold')[:12]
+    serializer = ProductSerializer(qs, many=True)
+    return Response(serializer.data)
 
 # TODO: Need new sslcommerz account for production.

@@ -12,7 +12,7 @@ class User(AbstractUser):
     first_name = models.CharField(max_length=100, blank=True, null=True)
     last_name = models.CharField(max_length=100, blank=True, null=True)
     email = models.EmailField(max_length=100, unique=True)
-    USERNAME_FIELD = 'email'
+    USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
     objects = UserManager()
     phone = models.CharField(max_length=100, blank=True, null=True)
@@ -45,7 +45,9 @@ class Product(models.Model):
     stock = models.IntegerField()
     slug = models.SlugField(blank=True, null=True, unique=True)
     intro_image = models.ImageField(
-        upload_to='img', default=None, null=True, blank=True)
+        upload_to="img", default=None, null=True, blank=True
+    )
+    sold = models.IntegerField(default=0)
     total_ratings = models.FloatField(default=0)
     total_reviews = models.IntegerField(default=0)
     avg_rating = models.FloatField(default=0)
@@ -60,10 +62,11 @@ class Product(models.Model):
 
 class ProductImage(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    image = models.ImageField(upload_to='img')
+    image = models.ImageField(upload_to="img")
 
     def __str__(self):
         return self.product.name
+
 
 # For the purpose of availability of a product, we will have a separate model for sizes and quantity of each size.
 
@@ -98,11 +101,10 @@ class Order(models.Model):
     address = models.CharField(max_length=300, blank=True, null=True)
 
     date_ordered = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(
-        max_length=100, default='Pending', null=True, blank=True)
+    status = models.CharField(max_length=100, default="Pending", null=True, blank=True)
     shipping_charge = models.FloatField(default=0.0)
     outside_comilla = models.BooleanField(default=False)
-    payment_method = models.CharField(max_length=100, default='online')
+    payment_method = models.CharField(max_length=100, default="online")
     total = models.FloatField(default=0.0)
     # if online payment.
     transaction_id = models.CharField(max_length=256, blank=True, null=True)
@@ -116,7 +118,7 @@ class Order(models.Model):
             return f"{self.username} ordered on {self.date_ordered}"
 
     def formatted_date(self):
-        return self.date_ordered.strftime('%H:%M:%S, %d/%m/%Y')
+        return self.date_ordered.strftime("%H:%M:%S, %d/%m/%Y")
 
 
 class OrderItem(models.Model):
@@ -153,6 +155,7 @@ class QnA(models.Model):
 # user is elligible to review or not. I'll just check if the user has an instance of this model for this product or not.
 # Once the order is confirmed and payment is done, i'll save the instance for this model.
 
+
 class EligibleReviewer(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
@@ -166,11 +169,13 @@ class Review(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     rating = models.IntegerField(
-        validators=[MinValueValidator(1), MaxValueValidator(5)])
+        validators=[MinValueValidator(1), MaxValueValidator(5)]
+    )
     review = models.TextField()
     date = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
         return f"{self.user} reviewed {self.product} on {self.date}"
+
 
 # TODO: Try to fix the date format in the backend, like travelMedia.

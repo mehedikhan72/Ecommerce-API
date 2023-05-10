@@ -15,6 +15,7 @@ urlpatterns = [
     path('get_size_specific_stock/<int:product_id>/<str:size>/',
          views.get_size_specific_stock, name='get_size_specific_stock'),
     path('get_categories/', views.CategoryList.as_view(), name='get_categories'),
+    path('get_top_products/', views.get_top_products, name='get_top_products'),
 
     # images
     path('images/<int:product_id>/', views.get_images, name='get_images'),
