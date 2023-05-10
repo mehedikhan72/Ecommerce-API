@@ -113,7 +113,7 @@ class Order(models.Model):
 
     def __str__(self):
         if self.first_name:
-            return f"{self.first_name} {self.last_name} orderedd on {self.date_ordered}"
+            return f"{self.first_name} {self.last_name} ordered on {self.date_ordered}"
         else:
             return f"{self.username} ordered on {self.date_ordered}"
 
