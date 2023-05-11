@@ -179,8 +179,6 @@ def upload_images(request, product_id):
         product = get_object_or_404(Product, id=product_id)
         images = request.FILES.getlist("images")
 
-        print(images)
-
         # Delete all the existing images(for edit) of this product if new images are provided
         if images:
             product_images = ProductImage.objects.filter(product=product)
@@ -213,7 +211,6 @@ def add_product_sizes(request, product_id):
     if user.is_moderator or user.is_admin:
         product = get_object_or_404(Product, id=product_id)
         sizes = request.data["sizes"]
-        print(sizes)
 
         # Make sure the sizes quantity count is the same as stocks count
         stock = int(request.data["stock"])
@@ -426,6 +423,7 @@ def get_total(order_data):
 
 def request_ssl_session(order_data, transaction_id):
     total = get_total(order_data)
+
     settings = {
         "store_id": os.environ.get("STORE_ID"),
         "store_pass": os.environ.get("STORE_PASSWD"),
@@ -542,6 +540,7 @@ def place_order(request):
 
             ssl_response = request_ssl_session(request.data, transaction_id)
             if not ssl_response["status"] == "SUCCESS":
+                order.delete()
                 return Response(
                     {"error": "Payment gateway error."},
                     status=status.HTTP_400_BAD_REQUEST,
