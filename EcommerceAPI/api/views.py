@@ -934,5 +934,15 @@ def get_top_products(request):
     serializer = ProductSerializer(qs, many=True)
     return Response(serializer.data)
 
+# Delete product
+@api_view(["DELETE"])
+@permission_classes([IsAuthenticated])
+def delete_product(request, slug):
+    user = request.user
+    if user.is_authenticated and (user.is_admin or user.is_moderator):
+        product = get_object_or_404(Product, slug=slug)
+        product.delete()
+        return Response({"message": "Product deleted successfully!"}, status=204)
+    return Response({"error": "You are not authorized!"})
 
 # TODO: Need new sslcommerz account for production.

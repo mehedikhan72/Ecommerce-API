@@ -23,6 +23,8 @@ urlpatterns = [
     ),
     path("get_categories/", views.CategoryList.as_view(), name="get_categories"),
     path("get_top_products/", views.get_top_products, name="get_top_products"),
+
+    path('delete_product/<slug:slug>/', views.delete_product, name='delete_product'),
     # images
     path("images/<int:product_id>/", views.get_images, name="get_images"),
     path("upload_images/<int:product_id>/", views.upload_images, name="upload_images"),
