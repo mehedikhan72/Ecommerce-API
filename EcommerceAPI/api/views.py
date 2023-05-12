@@ -5,7 +5,6 @@ import requests
 from django.http import HttpResponseBadRequest
 import uuid
 from sslcommerz_lib import SSLCOMMERZ
-from django.core.mail import send_mail
 from django.db import IntegrityError
 from django.db.models import Q
 from django.db.models.signals import post_save
@@ -346,6 +345,24 @@ def register_user(request):
 # TODO: might store some other payment related info in the db.
 # TODO: Add more security layers to this..(the ones chatGPT mentioned.)
 
+# This is for production. Won't work in development since i'll have to provide a valid domain.
+# TODO: send email to the customer with more details n links of the order, when the order is shipped or delivered.
+def send_email(first_name, last_name, to, subject, text):
+    def send_simple_message():
+        print("sending email")
+        return requests.post(
+            "https://api.mailgun.net/v3/sandboxf6d030c564634e419adf8fff551213a2.mailgun.org/messages",
+            auth=("api", "1c07200319baf33aa4844ddd98a67e8f-6b161b0a-74422a83"),
+            data={
+                "from": "Mailgun Sandbox <postmaster@sandboxf6d030c564634e419adf8fff551213a2.mailgun.org>",
+                "to": f"{first_name} {last_name} <{to}>",
+                "subject": subject,
+                "text": text,
+            },
+        )
+
+    send_simple_message()
+
 
 def reduce_quantity_ONLINE(order):
     order_items = OrderItem.objects.filter(order=order)
@@ -383,6 +400,8 @@ def payment_success(request):
         # Reduce quantity of products
         reduce_quantity_ONLINE(order)
         order.save()
+
+        send_email(order.first_name, order.last_name, order.email, "Order Placed", "Your payment was successful and your order was placed. Please visit the website to view your order details. Thank you for shopping with us")
         return redirect(f"http://localhost:3000/payment-result?status=success")
     else:
         order.delete()
@@ -457,10 +476,6 @@ def request_ssl_session(order_data, transaction_id):
 
 # Payment Logic Ends
 
-# TODO: reduce size quantities based on new orders.
-# TODO: Fix shipping charge logic.
-
-
 def create_eligible_reviewer(user, product_id, order_id):
     product = get_object_or_404(Product, id=product_id)
     order = get_object_or_404(Order, id=order_id)
@@ -503,7 +518,6 @@ def reduce_quantity_COD(item):
     product.stock -= quantity
     product.save()
     product_size.save()
-
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -576,9 +590,6 @@ def place_order(request):
                 message = get_item_unavailable_error_message(item)
                 return Response({"error": message})
 
-            if request.data["payment_method"] == "COD":
-                reduce_quantity_COD(item)
-
             try:
                 order_item = OrderItem.objects.create(
                     order=order,
@@ -589,19 +600,25 @@ def place_order(request):
                 )
                 order_item.save()
 
+                if request.data["payment_method"] == "COD":
+                    reduce_quantity_COD(item)
+
                 # increase sold count for products
                 product.sold += quantity
                 product.save()
+
             except IntegrityError:
+                order.delete()
                 return Response(
                     {"error": "Something went wrong"},
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-    # TODO: Check if the sizes and quantity are available, if yes, reduce the quantity. else delete the order and return a nice error message to the frontend.
-
     if request.data["payment_method"] == "online":
         return Response(ssl_response, status=status.HTTP_201_CREATED)
+    
+    if request.data["payment_method"] == "COD":
+        send_email(order.first_name, order.last_name, order.email, 'Order Placed', 'Your order has been placed successfully. Thank you for shopping with us. We will contact you soon.')
 
     return Response(
         {"success": "Order placed successfully!"}, status=status.HTTP_201_CREATED
@@ -934,6 +951,7 @@ def get_top_products(request):
     serializer = ProductSerializer(qs, many=True)
     return Response(serializer.data)
 
+
 # Delete product
 @api_view(["DELETE"])
 @permission_classes([IsAuthenticated])
@@ -944,5 +962,6 @@ def delete_product(request, slug):
         product.delete()
         return Response({"message": "Product deleted successfully!"}, status=204)
     return Response({"error": "You are not authorized!"})
+
 
 # TODO: Need new sslcommerz account for production.
