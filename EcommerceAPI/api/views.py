@@ -345,6 +345,7 @@ def register_user(request):
 # TODO: might store some other payment related info in the db.
 # TODO: Add more security layers to this..(the ones chatGPT mentioned.)
 
+
 # This is for production. Won't work in development since i'll have to provide a valid domain.
 # TODO: send email to the customer with more details n links of the order, when the order is shipped or delivered.
 def send_email(first_name, last_name, to, subject, text):
@@ -373,6 +374,7 @@ def reduce_quantity_ONLINE(order):
         product_size.available_quantity -= item.quantity
         product = item.product
         product.stock -= item.quantity
+        product.sold += item.quantity
         product.save()
         product_size.save()
 
@@ -401,7 +403,13 @@ def payment_success(request):
         reduce_quantity_ONLINE(order)
         order.save()
 
-        send_email(order.first_name, order.last_name, order.email, "Order Placed", "Your payment was successful and your order was placed. Please visit the website to view your order details. Thank you for shopping with us")
+        send_email(
+            order.first_name,
+            order.last_name,
+            order.email,
+            "Order Placed",
+            "Your payment was successful and your order was placed. Please visit the website to view your order details. Thank you for shopping with us",
+        )
         return redirect(f"http://localhost:3000/payment-result?status=success")
     else:
         order.delete()
@@ -476,6 +484,7 @@ def request_ssl_session(order_data, transaction_id):
 
 # Payment Logic Ends
 
+
 def create_eligible_reviewer(user, product_id, order_id):
     product = get_object_or_404(Product, id=product_id)
     order = get_object_or_404(Order, id=order_id)
@@ -509,15 +518,17 @@ def get_item_unavailable_error_message(item):
 
 
 def reduce_quantity_COD(item):
+    print("reducing quantity COD")
     product = get_object_or_404(Product, id=item["productData"]["id"])
-    quantity = item["quantity"]
+    quantity = int(item["quantity"])
     size = item["size"][0]["size"]
-
     product_size = get_object_or_404(ProductSize, product=product, size=size)
     product_size.available_quantity -= quantity
-    product.stock -= quantity
-    product.save()
     product_size.save()
+    product.stock -= quantity
+    product.sold += quantity
+    product.save()
+
 
 @api_view(["POST"])
 @permission_classes([AllowAny])
@@ -603,10 +614,6 @@ def place_order(request):
                 if request.data["payment_method"] == "COD":
                     reduce_quantity_COD(item)
 
-                # increase sold count for products
-                product.sold += quantity
-                product.save()
-
             except IntegrityError:
                 order.delete()
                 return Response(
@@ -616,9 +623,15 @@ def place_order(request):
 
     if request.data["payment_method"] == "online":
         return Response(ssl_response, status=status.HTTP_201_CREATED)
-    
+
     if request.data["payment_method"] == "COD":
-        send_email(order.first_name, order.last_name, order.email, 'Order Placed', 'Your order has been placed successfully. Thank you for shopping with us. We will contact you soon.')
+        send_email(
+            order.first_name,
+            order.last_name,
+            order.email,
+            "Order Placed",
+            "Your order has been placed successfully. Thank you for shopping with us. We will contact you soon.",
+        )
 
     return Response(
         {"success": "Order placed successfully!"}, status=status.HTTP_201_CREATED
